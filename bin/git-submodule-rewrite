@@ -5,6 +5,10 @@
 # entire process and cleans up a few other corner cases.
 # https://x3ro.de/2013/09/01/Integrating-a-submodule-into-the-parent-repository.html
 
+# In this Fork i added function that adds merge commit SHA to git-revs-blame-ignore
+# this maybe useful for huge repositories with tons of files
+# I also changed name of nested submodules so now they looks like [base_repo+submodule_path+their_own_path]
+
 function usage(){
   echo "Usage: $0 <submodule-name> [<submodule-branch>]"
   echo "Merge a single branch of <submodule-name> into a repo, retaining file history."
@@ -58,6 +62,28 @@ EOF
   request_confirmation "Do you want to proceed?"
 }
 
+function update_git_blame_ignore_revs() {
+  commit_sha=$(git rev-parse HEAD)
+  cat << EOF
+  This script will add merge commit sha to .git-blame-ignore-revs file
+
+  Commit sha:
+  * "${commit_sha}"
+
+EOF
+  request_confirmation "Do you want to proceed?"
+
+  if [ -f .git-blame-ignore-revs ]; then
+    echo -e "\nMerged submodule as folder with history: [${sub}]" >> .git-blame-ignore-revs
+    echo "${commit_sha}" >> .git-blame-ignore-revs
+    echo "$(tput setaf 2)Added commit sha to .git-blame-ignore-revs$(tput sgr0)"
+  else
+    echo "Merged submodule as folder with history: [${sub}]" > .git-blame-ignore-revs
+    echo "${commit_sha}" >> .git-blame-ignore-revs
+    echo "$(tput setaf 2)Created .git-blame-ignore-revs file$(tput sgr0)"
+  fi
+}
+
 function git_version_lte() {
   OP_VERSION=$(printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' '\n' | head -n 4))
   GIT_VERSION=$(git version)
@@ -85,6 +111,8 @@ function absolute_url {
 }
 
 function main() {
+
+  echo "Path: $path"
 
   if [ "${skip_warn}" != "true" ]; then
 	warn
@@ -157,7 +185,8 @@ function main() {
 
       # remove the sub-submodule (which should be empty) and cache the command to reinstate it
       rmdir ${path}/${sub_path}
-      add_submod_cmds="$add_submod_cmds git submodule add ${sub_branch} --name ${sub_name} -- ${sub_url} ${path}/${sub_path} ; "
+      add_submod_cmds="$add_submod_cmds git submodule add ${sub_branch} --name ${path}/${sub_name} -- ${sub_url} ${path}/${sub_path} ; "
+      echo "add_submod_cmds: ${add_submod_cmds}"
     done
   fi
 
@@ -172,6 +201,8 @@ function main() {
 
   set +x
   echo "$(tput setaf 2)Submodule merge complete. Push changes after review.$(tput sgr0)"
+
+  update_git_blame_ignore_revs
 }
 
 set -euo pipefail
