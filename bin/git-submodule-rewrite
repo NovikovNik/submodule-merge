@@ -82,6 +82,9 @@ EOF
     echo "${commit_sha}" >> .git-blame-ignore-revs
     echo "$(tput setaf 2)Created .git-blame-ignore-revs file$(tput sgr0)"
   fi
+
+  git add -A .
+  git commit -m "Add blame ignore revs for submodule merge ${sub}"
 }
 
 function git_version_lte() {
