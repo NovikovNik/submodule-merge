@@ -95,6 +95,17 @@ function git_version_lte() {
   [ ${GIT_VERSION} -le ${OP_VERSION} ]
 }
 
+# Check if git-filter-repo is installed
+function check_git_filter_repo() {
+  if ! git filter-repo --version >/dev/null 2>&1; then
+    >&2 echo "Error: git-filter-repo is not installed"
+    >&2 echo "Please install it first:"
+    >&2 echo "  pip3 install git-filter-repo"
+    >&2 echo "or visit https://github.com/newren/git-filter-repo for other installation methods"
+    exit 1
+  fi
+}
+
 # Convert a url to an absolute url
 #
 # Parameters:
@@ -116,6 +127,7 @@ function absolute_url {
 function main() {
 
   echo "Path: $path"
+  check_git_filter_repo
 
   if [ "${skip_warn}" != "true" ]; then
 	warn
@@ -142,8 +154,9 @@ function main() {
   git fetch --tags
   pushd "${tmpdir}"
   local tab="$(printf '\t')"
-  local filter="git ls-files -s | sed \"s:${tab}:${tab}${path}/:\" | GIT_INDEX_FILE=\${GIT_INDEX_FILE}.new git update-index --index-info && mv \${GIT_INDEX_FILE}.new \${GIT_INDEX_FILE} || true"
-  git filter-branch --index-filter "${filter}" HEAD
+  git filter-repo \
+    --force \
+    --to-subdirectory-filter "$path"
   popd
 
   # Merge in rewritten submodule history
